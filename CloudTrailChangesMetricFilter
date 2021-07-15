@@ -1,0 +1,57 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "AWS CloudTrail API Activity Alarm Template for CloudWatch Logs",
+  "Parameters" : {
+      "LogGroupName" : {
+          "Type" : "String",
+          "Default" : "CloudTrail/DefaultLogGroup",
+          "Description" : "Enter CloudWatch Logs log group name. Default is CloudTrail/DefaultLogGroup"
+      },
+      "Email" : {
+          "Type" : "String",
+          "Description" : "Email address to notify when an API activity has triggered an alarm"
+      }
+  },
+  "Resources" : {
+      "CloudTrailChangesMetricFilter": {
+          "Type": "AWS::Logs::MetricFilter",
+          "Properties": {
+              "LogGroupName": { "Ref" : "LogGroupName" },
+              "FilterPattern": "{ ($.eventName = CreateTrail) || ($.eventName = UpdateTrail) || ($.eventName = DeleteTrail) || ($.eventName = StartLogging) || ($.eventName = StopLogging) }",
+              "MetricTransformations": [
+                  {
+                      "MetricNamespace": "CloudTrailMetrics",
+                      "MetricName": "CloudTrailEventCount",
+                      "MetricValue": "1"
+                  }
+              ]
+          }
+      },
+      "CloudTrailChangesAlarm": {
+          "Type": "AWS::CloudWatch::Alarm",
+          "Properties": {
+              "AlarmName" : "CloudTrailChanges",
+              "AlarmDescription" : "Alarms when an API call is made to create, update or delete a CloudTrail trail, or to start or stop logging to a trail.",
+              "AlarmActions" : [{ "Ref" : "AlarmNotificationTopic" }],
+              "MetricName" : "CloudTrailEventCount",
+              "Namespace" : "CloudTrailMetrics",
+              "ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+              "EvaluationPeriods" : "1",
+              "Period" : "300",
+              "Statistic" : "Sum",
+              "Threshold" : "1"
+          }
+      },
+	  "AlarmNotificationTopic": {
+          "Type": "AWS::SNS::Topic",
+          "Properties": {
+              "Subscription": [
+                  {
+                      "Endpoint": { "Ref": "Email" },
+                      "Protocol": "email"
+                  }
+              ]
+          }
+      }
+  }
+}	  

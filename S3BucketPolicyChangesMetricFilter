@@ -1,0 +1,58 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "AWS CloudTrail API Activity Alarm Template for CloudWatch Logs",
+  "Parameters" : {
+      "LogGroupName" : {
+          "Type" : "String",
+          "Default" : "CloudTrail/DefaultLogGroup",
+          "Description" : "Enter CloudWatch Logs log group name. Default is CloudTrail/DefaultLogGroup"
+      },
+      "Email" : {
+          "Type" : "String",
+          "Description" : "Email address to notify when an API activity has triggered an alarm"
+      }
+  },
+  "Resources" : {
+      "S3BucketPolicyChangesMetricFilter": {
+          "Type": "AWS::Logs::MetricFilter",
+          "Properties": {
+              "LogGroupName": { "Ref" : "LogGroupName" },
+              "FilterPattern": "{ ($.eventSource = s3.amazonaws.com) && (($.eventName = PutBucketAcl) || ($.eventName = PutBucketPolicy) || ($.eventName = PutBucketCors) || ($.eventName = PutBucketLifecycle) || ($.eventName = PutBucketReplication) || ($.eventName = DeleteBucketPolicy) || ($.eventName = DeleteBucketCors) || ($.eventName = DeleteBucketLifecycle) || ($.eventName = DeleteBucketReplication)) }",
+              "MetricTransformations": [
+                  {
+                      "MetricNamespace": "CloudTrailMetrics",
+                      "MetricName": "S3BucketActivityEventCount",
+                      "MetricValue": "1"
+                  }
+              ]
+          }
+      },
+      "S3BucketPolicyChangesAlarm": {
+          "Type": "AWS::CloudWatch::Alarm",
+          "Properties": {
+              "AlarmName" : "S3BucketPolicyChanges",
+              "AlarmDescription" : "Alarms when an API call is made to change an S3 policy.",
+              "AlarmActions" : [{ "Ref" : "AlarmNotificationTopic" }],
+              "MetricName" : "S3BucketActivityEventCount",
+              "Namespace" : "CloudTrailMetrics",
+              "ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+              "EvaluationPeriods" : "1",
+              "Period" : "300",
+              "Statistic" : "Sum",
+              "Threshold" : "1"
+          }
+      },
+	  
+	  "AlarmNotificationTopic": {
+          "Type": "AWS::SNS::Topic",
+          "Properties": {
+              "Subscription": [
+                  {
+                      "Endpoint": { "Ref": "Email" },
+                      "Protocol": "email"
+                  }
+              ]
+          }
+      }
+  }
+}  

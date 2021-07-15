@@ -1,0 +1,58 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "AWS CloudTrail API Activity Alarm Template for CloudWatch Logs",
+  "Parameters" : {
+      "LogGroupName" : {
+          "Type" : "String",
+          "Default" : "CloudTrail/DefaultLogGroup",
+          "Description" : "Enter CloudWatch Logs log group name. Default is CloudTrail/DefaultLogGroup"
+      },
+      "Email" : {
+          "Type" : "String",
+          "Description" : "Email address to notify when an API activity has triggered an alarm"
+      }
+  },
+  "Resources" : {
+      "IAMPolicyChangesMetricFilter": {
+          "Type": "AWS::Logs::MetricFilter",
+          "Properties": {
+              "LogGroupName": { "Ref" : "LogGroupName" },
+              "FilterPattern": "{($.eventName=DeleteGroupPolicy)||($.eventName=DeleteRolePolicy)||($.eventName=DeleteUserPolicy)||($.eventName=PutGroupPolicy)||($.eventName=PutRolePolicy)||($.eventName=PutUserPolicy)||($.eventName=CreatePolicy)||($.eventName=DeletePolicy)||($.eventName=CreatePolicyVersion)||($.eventName=DeletePolicyVersion)||($.eventName=AttachRolePolicy)||($.eventName=DetachRolePolicy)||($.eventName=AttachUserPolicy)||($.eventName=DetachUserPolicy)||($.eventName=AttachGroupPolicy)||($.eventName=DetachGroupPolicy)}",
+              "MetricTransformations": [
+                  {
+                      "MetricNamespace": "CloudTrailMetrics",
+                      "MetricName": "IAMPolicyEventCount",
+                      "MetricValue": "1"
+                  }
+              ]
+          }
+      },
+      "IAMPolicyChangesAlarm": {
+          "Type": "AWS::CloudWatch::Alarm",
+          "Properties": {
+              "AlarmName" : "CloudTrailIAMPolicyChanges",
+              "AlarmDescription" : "Alarms when an API call is made to change an IAM policy.",
+              "AlarmActions" : [{ "Ref" : "AlarmNotificationTopic" }],
+              "MetricName" : "IAMPolicyEventCount",
+              "Namespace" : "CloudTrailMetrics",
+              "ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+              "EvaluationPeriods" : "1",
+              "Period" : "300",
+              "Statistic" : "Sum",
+              "Threshold" : "1"
+          }
+      },
+	  
+	  "AlarmNotificationTopic": {
+          "Type": "AWS::SNS::Topic",
+          "Properties": {
+              "Subscription": [
+                  {
+                      "Endpoint": { "Ref": "Email" },
+                      "Protocol": "email"
+                  }
+              ]
+          }
+      }
+  }
+}  
